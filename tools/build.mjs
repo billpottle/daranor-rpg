@@ -23,6 +23,23 @@ function sha256(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
+function writeGameShell(gameOutput) {
+  const templatePath = path.join(repoRoot, "packages/ui/index.html");
+  const versionedFiles = [
+    ["href", "css/style.css"],
+    ["src", "js/game-data.js"],
+    ["src", "js/game.js"]
+  ];
+  let html = fs.readFileSync(templatePath, "utf8");
+  for (const [attribute, relativePath] of versionedFiles) {
+    const marker = `${attribute}="${relativePath}"`;
+    if (!html.includes(marker)) throw new Error(`Missing game shell asset reference: ${marker}`);
+    const version = sha256(path.join(gameOutput, relativePath)).slice(0, 12);
+    html = html.replace(marker, `${attribute}="${relativePath}?v=${version}"`);
+  }
+  fs.writeFileSync(path.join(gameOutput, "index.html"), html);
+}
+
 function writeAssetManifest(gameRoot) {
   const assetRoot = path.join(gameRoot, "assets");
   const assets = walkFiles(assetRoot)
@@ -51,10 +68,10 @@ export function build() {
     const gameSource = path.join(repoRoot, "games", gameId);
     const gameOutput = path.join(distRoot, gameId);
     fs.mkdirSync(gameOutput, { recursive: true });
-    copyFile(path.join(repoRoot, "packages/ui/index.html"), path.join(gameOutput, "index.html"));
     copyFile(path.join(repoRoot, "packages/ui/style.css"), path.join(gameOutput, "css/style.css"));
     copyFile(path.join(repoRoot, "packages/engine/game.js"), path.join(gameOutput, "js/game.js"));
     copyFile(path.join(gameSource, "game-data.js"), path.join(gameOutput, "js/game-data.js"));
+    writeGameShell(gameOutput);
     copyDirectory(path.join(repoRoot, "shared/assets"), path.join(gameOutput, "assets"));
     copyDirectory(path.join(gameSource, "assets"), path.join(gameOutput, "assets"));
     const manifest = writeAssetManifest(gameOutput);

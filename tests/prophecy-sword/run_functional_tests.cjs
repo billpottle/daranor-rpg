@@ -299,6 +299,8 @@ async function runTests(cdp) {
         titleArtLoaded: Boolean(titleArtResource && titleArtResource.decodedBodySize > 0),
         titleArtVariable: document.documentElement.style.getPropertyValue("--game-title-art"),
         titleArtBackground: getComputedStyle(document.querySelector(".title-art")).backgroundImage,
+        stylesheetHref: document.querySelector('link[rel="stylesheet"]')?.getAttribute("href") || "",
+        scriptSources: Array.from(document.querySelectorAll("script[src]"), (script) => script.getAttribute("src") || ""),
         homeHref: document.querySelector(".title-home-link")?.getAttribute("href") || "",
         homeLabel: document.querySelector(".title-home-link")?.getAttribute("aria-label") || ""
       };
@@ -310,6 +312,9 @@ async function runTests(cdp) {
     assert(result.titleArtVariable.includes(result.expectedTitleArt), `Title art CSS variable should use an absolute page URL, got ${JSON.stringify(result)}.`);
     assert(result.titleArtBackground.includes(result.expectedTitleArt), `Title art background should resolve to the campaign asset, got ${JSON.stringify(result)}.`);
     assert(result.titleArtLoaded, `Title art should download successfully, got ${JSON.stringify(result)}.`);
+    assert(/^css\/style\.css\?v=[0-9a-f]{12}$/.test(result.stylesheetHref), `Stylesheet should have a content version, got ${JSON.stringify(result)}.`);
+    assert(result.scriptSources.some((src) => /^js\/game-data\.js\?v=[0-9a-f]{12}$/.test(src)), `Campaign data should have a content version, got ${JSON.stringify(result)}.`);
+    assert(result.scriptSources.some((src) => /^js\/game\.js\?v=[0-9a-f]{12}$/.test(src)), `Shared engine should have a content version, got ${JSON.stringify(result)}.`);
     assert(result.titleArtBackground.includes("prophecyquest-title-v1"), `Title screen should use ProphecyQuest-specific art, got ${JSON.stringify(result)}.`);
     assert(result.faviconHref.includes("favicon.png") && result.faviconType === "image/png", `Title shell should use a generated raster favicon, got ${JSON.stringify(result)}.`);
     assert(result.guideImages === 0, "Guide canvases should not exist before opening the guide.");
