@@ -1,0 +1,17 @@
+{
+  "name": "daranor-rpg",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Shared engine and campaigns for the Daranor RPG trilogy.",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "dev": "node tools/dev.mjs",
+    "start": "node tools/serve.mjs",
+    "validate": "node tools/validate-all.mjs",
+    "test": "node tools/test-all.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "SEE LICENSE.md"
+}

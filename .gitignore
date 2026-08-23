@@ -1,0 +1,6 @@
+.DS_Store
+.compat/
+dist/
+node_modules/
+tmp/
+*.log

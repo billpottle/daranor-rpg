@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contribution guide
+    url: https://github.com/billpottle/daranor-rpg/blob/main/CONTRIBUTING.md
+    about: Read the project structure, testing, licensing, and provenance requirements.

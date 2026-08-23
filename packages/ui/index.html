@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Daranor RPG</title>
+    <link id="game-favicon" rel="icon">
+    <link rel="stylesheet" href="css/style.css">
+  </head>
+  <body>
+    <main id="app" class="game-shell">
+      <section id="title-screen" class="title-screen" aria-label="Daranor RPG title screen">
+        <div class="title-art"></div>
+        <div class="title-copy">
+          <p class="kicker">Daranor Role Playing Game</p>
+          <h1 id="title-heading">Daranor RPG</h1>
+          <img id="title-wordmark" class="title-wordmark is-hidden" alt="" aria-hidden="true" fetchpriority="high">
+          <p class="tagline">A browser adventure in Daranor.</p>
+          <div class="title-actions">
+            <button id="new-game" class="primary-btn" type="button">New Game</button>
+            <button id="continue-game" type="button">Continue</button>
+            <button id="guide-title" type="button">Guide</button>
+            <button id="creator-title" type="button">Creator</button>
+            <button id="music-title" class="music-switch is-active" type="button" role="switch" aria-checked="true">
+              <span class="music-switch-label">Music</span>
+              <span class="music-switch-track" aria-hidden="true">
+                <span class="music-switch-thumb"></span>
+                <span class="music-switch-state">On</span>
+              </span>
+            </button>
+            <button id="import-title" type="button">Load File</button>
+          </div>
+          <div id="trilogy-strip" class="trilogy-strip" aria-label="Daranor trilogy cover art"></div>
+        </div>
+      </section>
+
+      <section id="game-screen" class="game-screen is-hidden" aria-label="Daranor RPG game screen">
+        <button id="focus-toggle" class="focus-toggle" type="button" aria-pressed="false">Full Screen</button>
+        <header class="hud">
+          <div>
+            <p class="hud-label">Location</p>
+            <h2 id="location-name">Krendon</h2>
+            <span id="creator-badge" class="creator-badge is-hidden">Creator</span>
+          </div>
+          <div class="hud-stat">
+            <span id="gold">0</span>
+            <small>gold</small>
+          </div>
+          <div class="hud-actions">
+            <button id="save-btn" type="button" aria-label="Save game"><span aria-hidden="true">◆</span><span class="action-label">Save</span></button>
+            <span id="save-status" class="save-status" aria-live="polite">Autosave ready</span>
+            <button id="music-btn" class="music-switch is-active" type="button" role="switch" aria-checked="true" aria-label="Music">
+              <span class="music-switch-label">Music</span>
+              <span class="music-switch-track" aria-hidden="true">
+                <span class="music-switch-thumb"></span>
+                <span class="music-switch-state">On</span>
+              </span>
+            </button>
+            <button id="menu-btn" type="button" aria-label="Open menu"><span aria-hidden="true">☰</span><span class="action-label">Menu</span></button>
+            <details class="hud-more">
+              <summary aria-label="More HUD options">•••</summary>
+              <div><span id="mobile-save-status">Autosave ready</span><button id="hud-settings" type="button">Settings</button></div>
+            </details>
+          </div>
+        </header>
+
+        <div id="area-loading" class="area-loading is-hidden" role="status" aria-live="polite">Loading current area…</div>
+        <div class="main-play">
+          <section class="map-panel" aria-label="Map">
+            <div id="scene-banner" class="scene-banner"></div>
+            <div class="map-stage">
+              <canvas id="map-canvas" width="960" height="704" role="application" tabindex="0" aria-label="Local area map. Use arrow keys or WASD to move." aria-describedby="map-text-alternative"></canvas>
+              <canvas id="mini-map-canvas" class="mini-map" width="320" height="220" aria-label="Visual mini map" aria-describedby="map-text-alternative"></canvas>
+              <button id="mini-map-toggle" class="mini-map-toggle" type="button" aria-expanded="false" aria-controls="mini-map-canvas">Expand Map</button>
+              <div class="mini-map-legend" aria-label="Local map legend">
+                <span><b class="legend-player"></b>You</span><span><b class="legend-npc"></b>NPC</span><span><b class="legend-chest"></b>Chest</span><span><b class="legend-boss"></b>Boss</span><span><b class="legend-door"></b>Door</span><span><b class="legend-exit"></b>Exit</span><span><b class="legend-objective"></b>Objective</span>
+                <strong id="objective-direction">Objective nearby</strong>
+              </div>
+              <div id="map-text-alternative" class="sr-only" aria-live="polite"></div>
+            </div>
+          </section>
+
+        </div>
+        <div class="field-dock" aria-label="Field menu">
+          <div id="mobile-controls" class="mobile-controls" aria-label="Movement controls">
+            <button class="compass-button compass-up" data-dir="up" type="button" aria-label="Move up">^</button>
+            <button class="compass-button compass-right" data-dir="right" type="button" aria-label="Move right">&gt;</button>
+            <button class="compass-button compass-down" data-dir="down" type="button" aria-label="Move down">v</button>
+            <button class="compass-button compass-left" data-dir="left" type="button" aria-label="Move left">&lt;</button>
+            <div class="compass-knob" aria-hidden="true"></div>
+          </div>
+          <button id="field-menu-btn" class="field-menu-btn" type="button" aria-label="Open menu" title="Menu">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <div class="field-dock-copy">
+            <strong id="dock-location">Krendon</strong>
+            <span id="dock-quest" aria-live="polite">Open the menu for inventory and party.</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="dialogue" class="dialogue is-hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Dialogue">
+        <div class="dialogue-box">
+          <canvas id="dialogue-portrait" class="dialogue-portrait" width="132" height="132" aria-label="Speaker portrait"></canvas>
+          <div class="dialogue-copy">
+            <p id="speaker" class="speaker"></p>
+            <p id="dialogue-text" aria-live="polite"></p>
+          </div>
+          <button id="dialogue-next" class="primary-btn" type="button">Next</button>
+        </div>
+      </section>
+
+      <section id="item-modal" class="item-modal is-hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Item acquired">
+        <div class="item-modal-box">
+          <p id="item-modal-kicker" class="item-modal-kicker">Key Item</p>
+          <canvas id="item-modal-image" class="item-modal-image" width="220" height="180" aria-label="Acquired item image"></canvas>
+          <h2 id="item-modal-name"></h2>
+          <p id="item-modal-text"></p>
+          <div class="item-modal-actions">
+            <button id="item-modal-equip" type="button" class="is-hidden">Equip now</button>
+            <button id="item-modal-close" class="primary-btn" type="button">Continue</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="battle" class="battle is-hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Battle">
+        <div class="battle-box">
+          <div class="battle-visual">
+            <canvas id="battle-stage" class="battle-stage" width="1120" height="460"></canvas>
+            <div class="battle-overlay">
+              <span class="battle-label battle-label-party">Party</span>
+              <span class="battle-label battle-label-enemy">Enemy</span>
+            </div>
+          </div>
+          <div class="enemy-hud">
+            <h2 id="enemy-name"></h2>
+            <div id="enemy-hp-meter" class="meter" role="progressbar" aria-label="Enemy health" aria-valuemin="0" aria-valuemax="1" aria-valuenow="1"><span id="enemy-hp-bar"></span></div>
+          </div>
+          <div id="battle-party" class="battle-party"></div>
+          <div class="battle-command-dock">
+            <p id="battle-log" class="battle-log" aria-live="polite"></p>
+            <div class="battle-actions">
+              <button data-action="auto" id="auto-battle" type="button" aria-pressed="false">Auto</button>
+              <button data-action="run" type="button">Run</button>
+              <button data-action="party" class="primary-btn" type="button" aria-expanded="false" aria-controls="battle-party">Party</button>
+              <button data-action="undo" id="undo-round" type="button" aria-label="Undo the most recently queued action" disabled>Undo</button>
+              <button data-action="execute" id="execute-round" type="button" disabled>Execute Round</button>
+            </div>
+          </div>
+          <label class="battle-speed" for="battle-speed">
+            <span>Battle speed</span>
+            <input id="battle-speed" type="range" min="0.8" max="3" step="0.2" value="1.4">
+            <strong id="battle-speed-value">1.4x</strong>
+          </label>
+        </div>
+      </section>
+
+      <section id="menu-modal" class="menu-modal is-hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Game menu">
+        <div class="menu-box">
+          <header>
+            <h2>Menu</h2>
+            <button id="close-menu" type="button" aria-label="Close menu">X</button>
+          </header>
+          <div id="menu-content" class="menu-content"></div>
+          <div class="menu-actions">
+            <button id="menu-guide" type="button">Guide</button>
+            <button id="menu-save" type="button">Save Browser Slot</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="creator-modal" class="menu-modal is-hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Creator tools">
+        <div class="menu-box creator-box">
+          <header>
+            <h2>Creator Tools</h2>
+            <button id="close-creator" type="button" aria-label="Close creator tools">X</button>
+          </header>
+          <div id="creator-content" class="creator-content"></div>
+        </div>
+      </section>
+
+      <section id="guide-modal" class="menu-modal is-hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-label="DreamQuest guide">
+        <div class="menu-box guide-box">
+          <header>
+            <h2>Complete DreamQuest Guide</h2>
+            <button id="close-guide" type="button" aria-label="Close guide">X</button>
+          </header>
+          <div id="guide-content" class="guide-content"></div>
+        </div>
+      </section>
+
+      <div id="screen-effect" class="screen-effect is-hidden" aria-hidden="true"></div>
+      <section id="cutscene" class="cutscene is-hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Story scene">
+        <div class="cutscene-frame">
+          <img id="cutscene-image" alt="">
+          <p id="cutscene-status" class="cutscene-status" role="status" aria-live="polite">Loading scene...</p>
+        </div>
+        <button id="cutscene-skip" class="cutscene-skip" type="button">Skip scene</button>
+      </section>
+
+      <section id="ending-scene" class="ending-scene is-hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Ending credits">
+        <div class="ending-panel">
+          <div class="ending-art" aria-hidden="true"></div>
+          <div class="ending-content">
+            <p id="ending-kicker" class="ending-kicker">Quest Complete</p>
+            <h2 id="ending-title">Daranor Endures</h2>
+            <p id="ending-copy" class="ending-copy">The party's story is complete.</p>
+            <div id="ending-scroll" class="ending-scroll" aria-label="Credits" tabindex="0">
+              <div id="ending-credit-list" class="ending-credit-list"></div>
+            </div>
+            <button id="credits-toggle" type="button" aria-pressed="false">Pause Credits</button>
+            <section class="ending-sidequests" aria-label="Side quest progress">
+              <header>
+                <strong>Side Quests</strong>
+                <span id="ending-sidequest-count"></span>
+              </header>
+              <ul id="ending-sidequest-list"></ul>
+            </section>
+            <div class="ending-actions">
+              <button id="ending-sidequests" class="primary-btn" type="button">Side Quest Log</button>
+              <button id="ending-continue" type="button">Keep Playing</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="coach-modal" class="item-modal is-hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="coach-title">
+        <div class="item-modal-box coach-box">
+          <p class="item-modal-kicker">First-time tip</p>
+          <h2 id="coach-title"></h2>
+          <p id="coach-text"></p>
+          <div class="item-modal-actions">
+            <button id="coach-disable" type="button">Turn Tips Off</button>
+            <button id="coach-close" class="primary-btn" type="button">Got it</button>
+          </div>
+        </div>
+      </section>
+
+      <input id="import-file" class="is-hidden" type="file" accept="application/json,.json">
+    </main>
+    <script src="js/game-data.js"></script>
+    <script src="js/game.js"></script>
+  </body>
+</html>
