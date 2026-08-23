@@ -8,21 +8,37 @@
   </head>
   <body>
     <main>
-      <p class="eyebrow">The Daranor Trilogy</p>
-      <h1>Choose your quest</h1>
-      <p class="intro">Play the original DreamQuest adventure or continue into the combined ProphecyQuest and SwordQuest campaign.</p>
-      <div class="games">
-        <a href="dreamquest/">
-          <span>Book I</span>
-          <strong>DreamQuest</strong>
-          <small>Begin with Tarthur's journey across Daranor.</small>
+      <header>
+        <p class="eyebrow">The Daranor Trilogy</p>
+        <h1>Choose your quest</h1>
+        <p class="intro">Play the original DreamQuest adventure or continue into the combined ProphecyQuest and SwordQuest campaign.</p>
+        <p class="play-note">No download needed. Your adventure saves in this browser.</p>
+      </header>
+      <section class="games" aria-label="Choose a Daranor adventure">
+        <a class="game-card" href="dreamquest/">
+          <span class="cover-stage cover-stage-single" aria-hidden="true">
+            <img src="dreamquest/assets/generated/title-covers/dreamquest-mobile.jpg" alt="" width="240" height="360" decoding="async">
+          </span>
+          <span class="game-copy">
+            <span class="book-label">Book I</span>
+            <strong>DreamQuest</strong>
+            <small>Begin with Tarthur's journey across Daranor.</small>
+            <span class="play-cta">Play DreamQuest <span aria-hidden="true">→</span></span>
+          </span>
         </a>
-        <a href="prophecy-sword/">
-          <span>Books II &amp; III</span>
-          <strong>ProphecyQuest / SwordQuest</strong>
-          <small>Continue through the prophecy and the Unity Blade finale.</small>
+        <a class="game-card" href="prophecy-sword/">
+          <span class="cover-stage cover-stage-pair" aria-hidden="true">
+            <img class="cover-prophecy" src="prophecy-sword/assets/generated/title-covers/prophecyquest-mobile.jpg" alt="" width="240" height="360" decoding="async">
+            <img class="cover-sword" src="prophecy-sword/assets/generated/title-covers/swordquest-mobile.jpg" alt="" width="240" height="360" decoding="async">
+          </span>
+          <span class="game-copy">
+            <span class="book-label">Books II &amp; III</span>
+            <strong>ProphecyQuest / SwordQuest</strong>
+            <small>Continue through the prophecy and the Unity Blade finale.</small>
+            <span class="play-cta">Play the sequel campaign <span aria-hidden="true">→</span></span>
+          </span>
         </a>
-      </div>
+      </section>
     </main>
   </body>
 </html>
