@@ -1977,7 +1977,8 @@
     }
     const setArtworkVariable = (name, src) => {
       if (!src) return;
-      const escaped = String(src).replace(/["\\\n\r]/g, (char) => `\\${char}`);
+      const absoluteSrc = new URL(String(src), document.baseURI).href;
+      const escaped = absoluteSrc.replace(/["\\\n\r]/g, (char) => `\\${char}`);
       document.documentElement.style.setProperty(name, `url("${escaped}")`);
     };
     setArtworkVariable("--game-title-art", shell.titleArt);

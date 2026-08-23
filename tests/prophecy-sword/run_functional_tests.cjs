@@ -282,6 +282,8 @@ async function runTests(cdp) {
     const result = await evalPage(cdp, `(() => {
       const images = performance.getEntriesByType("resource")
         .filter((entry) => /\\.(png|jpe?g|webp|svg)(\\?|$)/i.test(entry.name));
+      const expectedTitleArt = new URL(window.DreamQuestData.gameConfig.shell.titleArt, document.baseURI).href;
+      const titleArtResource = images.find((entry) => entry.name === expectedTitleArt);
       return {
         guideImages: document.querySelectorAll(".guide-image").length,
         totalCanvases: document.querySelectorAll("canvas").length,
@@ -293,6 +295,9 @@ async function runTests(cdp) {
         tagline: document.querySelector(".title-copy .tagline")?.textContent || "",
         faviconHref: document.querySelector('link[rel="icon"]')?.getAttribute("href") || "",
         faviconType: document.querySelector('link[rel="icon"]')?.getAttribute("type") || "",
+        expectedTitleArt,
+        titleArtLoaded: Boolean(titleArtResource && titleArtResource.decodedBodySize > 0),
+        titleArtVariable: document.documentElement.style.getPropertyValue("--game-title-art"),
         titleArtBackground: getComputedStyle(document.querySelector(".title-art")).backgroundImage,
         homeHref: document.querySelector(".title-home-link")?.getAttribute("href") || "",
         homeLabel: document.querySelector(".title-home-link")?.getAttribute("aria-label") || ""
@@ -302,6 +307,9 @@ async function runTests(cdp) {
     assert(result.homeHref === "../" && /all Daranor games/i.test(result.homeLabel), `Title should link back to the shared game chooser, got ${JSON.stringify(result)}.`);
     assert(result.documentTitle === "ProphecyQuest RPG" && result.heading === "ProphecyQuest RPG", `Title screen should be branded as ProphecyQuest RPG, got ${JSON.stringify(result)}.`);
     assert(result.kicker.includes("SwordQuest") && result.tagline.includes("SwordQuest"), `Title screen should still note SwordQuest, got ${JSON.stringify(result)}.`);
+    assert(result.titleArtVariable.includes(result.expectedTitleArt), `Title art CSS variable should use an absolute page URL, got ${JSON.stringify(result)}.`);
+    assert(result.titleArtBackground.includes(result.expectedTitleArt), `Title art background should resolve to the campaign asset, got ${JSON.stringify(result)}.`);
+    assert(result.titleArtLoaded, `Title art should download successfully, got ${JSON.stringify(result)}.`);
     assert(result.titleArtBackground.includes("prophecyquest-title-v1"), `Title screen should use ProphecyQuest-specific art, got ${JSON.stringify(result)}.`);
     assert(result.faviconHref.includes("favicon.png") && result.faviconType === "image/png", `Title shell should use a generated raster favicon, got ${JSON.stringify(result)}.`);
     assert(result.guideImages === 0, "Guide canvases should not exist before opening the guide.");

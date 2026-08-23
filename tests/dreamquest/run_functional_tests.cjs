@@ -264,17 +264,26 @@ async function runTests(cdp) {
     const result = await evalPage(cdp, `(() => {
       const images = performance.getEntriesByType("resource")
         .filter((entry) => /\\.(png|jpe?g|webp|svg)(\\?|$)/i.test(entry.name));
+      const expectedTitleArt = new URL(window.DreamQuestData.gameConfig.shell.titleArt, document.baseURI).href;
+      const titleArtResource = images.find((entry) => entry.name === expectedTitleArt);
       return {
         guideImages: document.querySelectorAll(".guide-image").length,
         totalCanvases: document.querySelectorAll("canvas").length,
         imageCount: images.length,
         gameHidden: document.querySelector("#game-screen").classList.contains("is-hidden"),
+        expectedTitleArt,
+        titleArtLoaded: Boolean(titleArtResource && titleArtResource.decodedBodySize > 0),
+        titleArtVariable: document.documentElement.style.getPropertyValue("--game-title-art"),
+        titleArtBackground: getComputedStyle(document.querySelector(".title-art")).backgroundImage,
         homeHref: document.querySelector(".title-home-link")?.getAttribute("href") || "",
         homeLabel: document.querySelector(".title-home-link")?.getAttribute("aria-label") || ""
       };
     })()`);
     assert(result.gameHidden, "Game screen should be hidden on title.");
     assert(result.homeHref === "../" && /all Daranor games/i.test(result.homeLabel), `Title should link back to the shared game chooser, got ${JSON.stringify(result)}.`);
+    assert(result.titleArtVariable.includes(result.expectedTitleArt), `Title art CSS variable should use an absolute page URL, got ${JSON.stringify(result)}.`);
+    assert(result.titleArtBackground.includes(result.expectedTitleArt), `Title art background should resolve to the campaign asset, got ${JSON.stringify(result)}.`);
+    assert(result.titleArtLoaded, `Title art should download successfully, got ${JSON.stringify(result)}.`);
     assert(result.guideImages === 0, "Guide canvases should not exist before opening the guide.");
     assert(result.imageCount <= 6, `Expected <= 6 startup images, saw ${result.imageCount}.`);
     assert(result.totalCanvases <= 6, `Expected only static canvases on startup, saw ${result.totalCanvases}.`);
