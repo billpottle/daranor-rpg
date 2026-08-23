@@ -2,6 +2,7 @@
 "use strict";
 
 const childProcess = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
@@ -42,6 +43,10 @@ const MIME_TYPES = {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function contentVersion(filePath) {
+  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex").slice(0, 12);
 }
 
 function sleep(ms) {
@@ -296,6 +301,7 @@ async function runTests(cdp) {
         faviconHref: document.querySelector('link[rel="icon"]')?.getAttribute("href") || "",
         faviconType: document.querySelector('link[rel="icon"]')?.getAttribute("type") || "",
         expectedTitleArt,
+        titleArtSource: window.DreamQuestData.gameConfig.shell.titleArt,
         titleArtLoaded: Boolean(titleArtResource && titleArtResource.decodedBodySize > 0),
         titleArtVariable: document.documentElement.style.getPropertyValue("--game-title-art"),
         titleArtBackground: getComputedStyle(document.querySelector(".title-art")).backgroundImage,
@@ -312,9 +318,11 @@ async function runTests(cdp) {
     assert(result.titleArtVariable.includes(result.expectedTitleArt), `Title art CSS variable should use an absolute page URL, got ${JSON.stringify(result)}.`);
     assert(result.titleArtBackground.includes(result.expectedTitleArt), `Title art background should resolve to the campaign asset, got ${JSON.stringify(result)}.`);
     assert(result.titleArtLoaded, `Title art should download successfully, got ${JSON.stringify(result)}.`);
-    assert(/^css\/style\.css\?v=[0-9a-f]{12}$/.test(result.stylesheetHref), `Stylesheet should have a content version, got ${JSON.stringify(result)}.`);
-    assert(result.scriptSources.some((src) => /^js\/game-data\.js\?v=[0-9a-f]{12}$/.test(src)), `Campaign data should have a content version, got ${JSON.stringify(result)}.`);
-    assert(result.scriptSources.some((src) => /^js\/game\.js\?v=[0-9a-f]{12}$/.test(src)), `Shared engine should have a content version, got ${JSON.stringify(result)}.`);
+    assert(result.stylesheetHref === `css/style.css?v=${contentVersion(path.join(ROOT, "css/style.css"))}`, `Stylesheet content version should match its bytes, got ${JSON.stringify(result)}.`);
+    assert(result.scriptSources.includes(`js/game-data.js?v=${contentVersion(path.join(ROOT, "js/game-data.js"))}`), `Campaign data content version should match its bytes, got ${JSON.stringify(result)}.`);
+    assert(result.scriptSources.includes(`js/game.js?v=${contentVersion(path.join(ROOT, "js/game.js"))}`), `Shared engine content version should match its bytes, got ${JSON.stringify(result)}.`);
+    const titleArtPath = result.titleArtSource.split("?")[0];
+    assert(result.titleArtSource === `${titleArtPath}?v=${contentVersion(path.join(ROOT, titleArtPath))}`, `Title art content version should match its bytes, got ${JSON.stringify(result)}.`);
     assert(result.titleArtBackground.includes("prophecyquest-title-v1"), `Title screen should use ProphecyQuest-specific art, got ${JSON.stringify(result)}.`);
     assert(result.faviconHref.includes("favicon.png") && result.faviconType === "image/png", `Title shell should use a generated raster favicon, got ${JSON.stringify(result)}.`);
     assert(result.guideImages === 0, "Guide canvases should not exist before opening the guide.");

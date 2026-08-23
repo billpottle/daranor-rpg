@@ -2,6 +2,7 @@
 "use strict";
 
 const childProcess = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
@@ -38,6 +39,10 @@ const MIME_TYPES = {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function contentVersion(filePath) {
+  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex").slice(0, 12);
 }
 
 function sleep(ms) {
@@ -272,6 +277,7 @@ async function runTests(cdp) {
         imageCount: images.length,
         gameHidden: document.querySelector("#game-screen").classList.contains("is-hidden"),
         expectedTitleArt,
+        titleArtSource: window.DreamQuestData.gameConfig.shell.titleArt,
         titleArtLoaded: Boolean(titleArtResource && titleArtResource.decodedBodySize > 0),
         titleArtVariable: document.documentElement.style.getPropertyValue("--game-title-art"),
         titleArtBackground: getComputedStyle(document.querySelector(".title-art")).backgroundImage,
@@ -286,9 +292,11 @@ async function runTests(cdp) {
     assert(result.titleArtVariable.includes(result.expectedTitleArt), `Title art CSS variable should use an absolute page URL, got ${JSON.stringify(result)}.`);
     assert(result.titleArtBackground.includes(result.expectedTitleArt), `Title art background should resolve to the campaign asset, got ${JSON.stringify(result)}.`);
     assert(result.titleArtLoaded, `Title art should download successfully, got ${JSON.stringify(result)}.`);
-    assert(/^css\/style\.css\?v=[0-9a-f]{12}$/.test(result.stylesheetHref), `Stylesheet should have a content version, got ${JSON.stringify(result)}.`);
-    assert(result.scriptSources.some((src) => /^js\/game-data\.js\?v=[0-9a-f]{12}$/.test(src)), `Campaign data should have a content version, got ${JSON.stringify(result)}.`);
-    assert(result.scriptSources.some((src) => /^js\/game\.js\?v=[0-9a-f]{12}$/.test(src)), `Shared engine should have a content version, got ${JSON.stringify(result)}.`);
+    assert(result.stylesheetHref === `css/style.css?v=${contentVersion(path.join(ROOT, "css/style.css"))}`, `Stylesheet content version should match its bytes, got ${JSON.stringify(result)}.`);
+    assert(result.scriptSources.includes(`js/game-data.js?v=${contentVersion(path.join(ROOT, "js/game-data.js"))}`), `Campaign data content version should match its bytes, got ${JSON.stringify(result)}.`);
+    assert(result.scriptSources.includes(`js/game.js?v=${contentVersion(path.join(ROOT, "js/game.js"))}`), `Shared engine content version should match its bytes, got ${JSON.stringify(result)}.`);
+    const titleArtPath = result.titleArtSource.split("?")[0];
+    assert(result.titleArtSource === `${titleArtPath}?v=${contentVersion(path.join(ROOT, titleArtPath))}`, `Title art content version should match its bytes, got ${JSON.stringify(result)}.`);
     assert(result.guideImages === 0, "Guide canvases should not exist before opening the guide.");
     assert(result.imageCount <= 6, `Expected <= 6 startup images, saw ${result.imageCount}.`);
     assert(result.totalCanvases <= 6, `Expected only static canvases on startup, saw ${result.totalCanvases}.`);

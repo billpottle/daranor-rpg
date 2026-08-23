@@ -23,6 +23,24 @@ function sha256(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
+function writeVersionedGameData(source, destination, gameOutput) {
+  const shellAssetPattern = /(\b(?:favicon|titleArt|titleArtMobile|titleWordmark|endingArt)\s*:\s*)(["'])(assets\/[^"']+)\2/g;
+  let replacements = 0;
+  const versionedSource = fs.readFileSync(source, "utf8").replace(
+    shellAssetPattern,
+    (match, prefix, quote, relativePath) => {
+      const cleanPath = relativePath.split("?")[0];
+      const assetPath = path.join(gameOutput, cleanPath);
+      if (!fs.existsSync(assetPath)) throw new Error(`Missing game shell asset: ${relativePath}`);
+      replacements += 1;
+      return `${prefix}${quote}${cleanPath}?v=${sha256(assetPath).slice(0, 12)}${quote}`;
+    }
+  );
+  if (!replacements) throw new Error(`No game shell assets found in ${source}`);
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.writeFileSync(destination, versionedSource);
+}
+
 function writeGameShell(gameOutput) {
   const templatePath = path.join(repoRoot, "packages/ui/index.html");
   const versionedFiles = [
@@ -70,10 +88,10 @@ export function build() {
     fs.mkdirSync(gameOutput, { recursive: true });
     copyFile(path.join(repoRoot, "packages/ui/style.css"), path.join(gameOutput, "css/style.css"));
     copyFile(path.join(repoRoot, "packages/engine/game.js"), path.join(gameOutput, "js/game.js"));
-    copyFile(path.join(gameSource, "game-data.js"), path.join(gameOutput, "js/game-data.js"));
-    writeGameShell(gameOutput);
     copyDirectory(path.join(repoRoot, "shared/assets"), path.join(gameOutput, "assets"));
     copyDirectory(path.join(gameSource, "assets"), path.join(gameOutput, "assets"));
+    writeVersionedGameData(path.join(gameSource, "game-data.js"), path.join(gameOutput, "js/game-data.js"), gameOutput);
+    writeGameShell(gameOutput);
     const manifest = writeAssetManifest(gameOutput);
     results.push({ gameId, ...manifest });
   }
