@@ -11,6 +11,9 @@
     <main id="app" class="game-shell">
       <section id="title-screen" class="title-screen" aria-label="Daranor RPG title screen">
         <div class="title-art"></div>
+        <a class="title-home-link" href="../" aria-label="Back to all Daranor games">
+          <span aria-hidden="true">←</span> All Games
+        </a>
         <div class="title-copy">
           <p class="kicker">Daranor Role Playing Game</p>
           <h1 id="title-heading">Daranor RPG</h1>
@@ -165,7 +168,7 @@
           <div id="menu-content" class="menu-content"></div>
           <div class="menu-actions">
             <button id="menu-guide" type="button">Guide</button>
-            <button id="menu-save" type="button">Save Browser Slot</button>
+            <button id="menu-save" type="button" aria-live="polite">Save Browser Slot</button>
           </div>
         </div>
       </section>

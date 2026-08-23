@@ -2408,13 +2408,14 @@
     if (group) drawMiniMapAreaAtlas(ctx, group, 8, 24, w - 16, h - 32);
     else drawMiniMapLocalBoard(ctx, 10, 26, w - 20, h - 36);
     ctx.restore();
+    const objectiveText = localObjectiveDirection();
     const direction = $("objective-direction");
-    if (direction) direction.textContent = localObjectiveDirection();
+    if (direction) direction.textContent = objectiveText;
     const textAlternative = $("map-text-alternative");
-    if (textAlternative) textAlternative.textContent = localMapTextAlternative();
+    if (textAlternative) textAlternative.textContent = localMapTextAlternative(objectiveText);
   }
 
-  function localMapTextAlternative() {
+  function localMapTextAlternative(objectiveText = localObjectiveDirection()) {
     const currentArea = area();
     const exits = (currentArea.exits || []).map((exit) => `${exit.edge} to ${areas[exit.to]?.name || exit.to}`);
     const nearby = currentEvents().filter((event) => {
@@ -2429,7 +2430,7 @@
       const kind = event.boss ? "boss" : eventKind(event);
       return `${kind} ${direction}`;
     });
-    return `${currentArea.name}. ${localObjectiveDirection()}. ${exits.length ? `Exits: ${exits.join(", ")}.` : "No edge exits."} ${nearby.length ? `Nearby interactions: ${nearby.join(", ")}.` : "No nearby interactions."}`;
+    return `${currentArea.name}. ${objectiveText}. ${exits.length ? `Exits: ${exits.join(", ")}.` : "No edge exits."} ${nearby.length ? `Nearby interactions: ${nearby.join(", ")}.` : "No nearby interactions."}`;
   }
 
   function activeObjectiveEventIds() {
@@ -14660,7 +14661,14 @@
       renderMenuContent();
     });
     $("menu-guide").addEventListener("click", openGuide);
-    $("menu-save").addEventListener("click", () => saveManualCheckpoint());
+    $("menu-save").addEventListener("click", () => {
+      if (!saveManualCheckpoint()) return;
+      const button = $("menu-save");
+      button.textContent = "Saved \u2713";
+      window.setTimeout(() => {
+        if (button) button.textContent = "Save Browser Slot";
+      }, 1400);
+    });
     $("dialogue-next").addEventListener("click", nextDialogue);
     $("cutscene-skip")?.addEventListener("click", finishCutscene);
     $("item-modal-equip")?.addEventListener("click", () => {

@@ -11,6 +11,7 @@
       flag = noop,
       hasFlag = () => false,
       openShop = noop,
+      playCorizazDrainTransition = noop,
       playTustorResurrection = noop,
       playWaterOrbTransition = noop,
       removeParty = noop,

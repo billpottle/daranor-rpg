@@ -268,10 +268,13 @@ async function runTests(cdp) {
         guideImages: document.querySelectorAll(".guide-image").length,
         totalCanvases: document.querySelectorAll("canvas").length,
         imageCount: images.length,
-        gameHidden: document.querySelector("#game-screen").classList.contains("is-hidden")
+        gameHidden: document.querySelector("#game-screen").classList.contains("is-hidden"),
+        homeHref: document.querySelector(".title-home-link")?.getAttribute("href") || "",
+        homeLabel: document.querySelector(".title-home-link")?.getAttribute("aria-label") || ""
       };
     })()`);
     assert(result.gameHidden, "Game screen should be hidden on title.");
+    assert(result.homeHref === "../" && /all Daranor games/i.test(result.homeLabel), `Title should link back to the shared game chooser, got ${JSON.stringify(result)}.`);
     assert(result.guideImages === 0, "Guide canvases should not exist before opening the guide.");
     assert(result.imageCount <= 6, `Expected <= 6 startup images, saw ${result.imageCount}.`);
     assert(result.totalCanvases <= 6, `Expected only static canvases on startup, saw ${result.totalCanvases}.`);
@@ -2395,10 +2398,15 @@ async function runTests(cdp) {
     const result = await evalPage(cdp, `(() => ({
       legend: document.querySelector(".mini-map-legend")?.textContent || "",
       direction: document.querySelector("#objective-direction")?.textContent || "",
+      textAlternative: document.querySelector("#map-text-alternative")?.textContent || "",
+      areaName: window.DreamQuestData.areas[window.DreamQuestDebug.getState().areaId]?.name || "",
+      describedBy: document.querySelector("#map-canvas")?.getAttribute("aria-describedby") || "",
       debugDirection: window.DreamQuestDebug.getLocalObjectiveDirection()
     }))()`);
     ["You", "NPC", "Door", "Objective"].forEach((label) => assert(result.legend.includes(label), `Minimap legend should include ${label}, got ${result.legend}.`));
     assert(result.direction && result.direction === result.debugDirection && /Objective|exit/i.test(result.direction), `Local objective direction should be visible, got ${JSON.stringify(result)}.`);
+    assert(result.describedBy.split(/\s+/).includes("map-text-alternative"), `The map canvas should reference its text alternative, got ${JSON.stringify(result)}.`);
+    assert(result.textAlternative.startsWith(`${result.areaName}. ${result.direction}. `), `The map text alternative should describe the same objective shown on screen, got ${JSON.stringify(result)}.`);
   });
 
   test("late party skills unlock within the remaining campaign", async () => {
@@ -2759,6 +2767,8 @@ async function runTests(cdp) {
     await closeDialogue(cdp);
     const beforeMenuSave = await evalPage(cdp, `window.DreamQuestDebug.getState()`);
     assert(beforeMenuSave.checkpoint.areaId !== beforeMenuSave.areaId, `Dungeon travel should not itself replace the safe-road checkpoint, got ${JSON.stringify(beforeMenuSave.checkpoint)}.`);
+    await evalPage(cdp, `window.DreamQuestDebug.openMenu("inventory")`);
+    await waitFor(cdp, `!document.querySelector("#menu-modal").classList.contains("is-hidden")`);
     await click(cdp, "#menu-save");
     const menuResult = await evalPage(cdp, `(() => {
       const key = window.DreamQuestData.gameConfig.saveKey;
@@ -2768,12 +2778,17 @@ async function runTests(cdp) {
         current: { areaId: current.areaId, x: current.x, y: current.y },
         checkpoint: current.checkpoint,
         storedCheckpoint: stored.checkpoint,
+        buttonText: document.querySelector("#menu-save")?.textContent || "",
+        menuVisible: !document.querySelector("#menu-modal")?.classList.contains("is-hidden"),
         accidentalEventKey: localStorage.getItem("[object MouseEvent]")
       };
     })()`);
     assert(JSON.stringify(menuResult.checkpoint) === JSON.stringify(menuResult.current), `Menu Save should checkpoint the current position, got ${JSON.stringify(menuResult)}.`);
     assert(JSON.stringify(menuResult.storedCheckpoint) === JSON.stringify(menuResult.current), `Menu Save should persist the checkpoint in the active browser slot, got ${JSON.stringify(menuResult)}.`);
+    assert(menuResult.menuVisible && menuResult.buttonText.trim() === "Saved \u2713", `Menu Save should visibly confirm success without closing the menu, got ${JSON.stringify(menuResult)}.`);
     assert(menuResult.accidentalEventKey === null, "Menu Save must not use its click event as a localStorage key.");
+    await waitFor(cdp, `document.querySelector("#menu-save")?.textContent.trim() === "Save Browser Slot"`, 2500);
+    await evalPage(cdp, `window.DreamQuestDebug.closeMenu()`);
 
     await evalPage(cdp, `window.DreamQuestDebug.travelTo("grassland")`);
     await closeDialogue(cdp);
@@ -3097,8 +3112,28 @@ async function runTests(cdp) {
         window.DreamQuestDebug.setPartyMembers(["tarthur", "derlin", "dalin", "yvonne"]);
         window.DreamQuestDebug.setActivePartyIds(["tarthur", "derlin", "dalin", "yvonne"]);
         window.DreamQuestDebug.startBattle("goblin");
-        ["tarthur", "derlin", "dalin", "yvonne"].forEach((id) => window.DreamQuestDebug.queueMemberAction(id, "attack"));
       })()`);
+      await waitFor(cdp, `Boolean(document.querySelector('#battle-party [data-member-action="attack"]'))`);
+      const initialActions = await evalPage(cdp, `(() => {
+        const box = document.querySelector(".battle-box");
+        const dock = document.querySelector(".battle-command-dock");
+        const boxRect = box.getBoundingClientRect();
+        const dockRect = dock.getBoundingClientRect();
+        return [...document.querySelectorAll('.battle-party-card:first-child .member-actions button[data-member-action]:not(:disabled)')].map((action) => {
+          const actionRect = action.getBoundingClientRect();
+          const hit = document.elementFromPoint(actionRect.left + actionRect.width / 2, actionRect.top + actionRect.height / 2);
+          return {
+            action: action.dataset.memberAction,
+            insideBox: actionRect.top >= boxRect.top - 1 && actionRect.bottom <= boxRect.bottom + 1,
+            aboveDock: actionRect.bottom <= dockRect.top + 1,
+            hit: hit === action || action.contains(hit),
+            blocker: hit ? hit.tagName + "#" + hit.id + "." + String(hit.className || "") : null,
+            visualHeight: Math.round(document.querySelector(".battle-visual").getBoundingClientRect().height)
+          };
+        });
+      })()`);
+      assert(initialActions.length > 0 && initialActions.every((action) => action.insideBox && action.aboveDock && action.hit), `The first member's actions should be immediately visible and clickable on a short desktop, got ${JSON.stringify(initialActions)}.`);
+      await evalPage(cdp, `["tarthur", "derlin", "dalin", "yvonne"].forEach((id) => window.DreamQuestDebug.queueMemberAction(id, "attack"))`);
       await waitFor(cdp, `!document.querySelector("#execute-round").disabled && !document.querySelector("#undo-round").disabled`);
       const result = await evalPage(cdp, `(() => {
         const box = document.querySelector(".battle-box");
@@ -3150,12 +3185,26 @@ async function runTests(cdp) {
       active: document.querySelector("[data-guide-section].is-active")?.dataset.guideSection,
       sections: document.querySelectorAll(".guide-section").length,
       entries: document.querySelectorAll(".guide-entry").length,
-      canvases: document.querySelectorAll(".guide-image").length
+      canvases: document.querySelectorAll(".guide-image").length,
+      tabStrip: (() => {
+        const strip = document.querySelector(".guide-tabs");
+        const button = strip?.querySelector(".menu-tab");
+        if (!strip || !button) return null;
+        const rect = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return {
+          height: Math.round(strip.getBoundingClientRect().height),
+          buttonHeight: Math.round(rect.height),
+          minHeight: parseFloat(getComputedStyle(strip).minHeight),
+          hit: hit === button || button.contains(hit)
+        };
+      })()
     }))()`);
     assert(guide.active === snapshot.config.defaultGuideSection, "Guide should open to the configured default section.");
     assert(guide.sections === 1, "Guide should render one section at a time.");
     assert(guide.entries === snapshot.guideSectionCounts[snapshot.config.defaultGuideSection], "Default guide section should render the configured entries.");
     assert(guide.entries > 0 && guide.canvases === guide.entries, "Guide entries should each have one image canvas.");
+    assert(guide.tabStrip?.minHeight >= 52 && guide.tabStrip.height >= guide.tabStrip.buttonHeight && guide.tabStrip.hit, `Guide tabs should remain fully visible and clickable, got ${JSON.stringify(guide.tabStrip)}.`);
     const totalEntries = Object.values(snapshot.guideSectionCounts).reduce((sum, count) => sum + count, 0);
     if (totalEntries > guide.entries) {
       assert(guide.canvases < totalEntries, `Guide should not render every entry at once, saw ${guide.canvases}.`);

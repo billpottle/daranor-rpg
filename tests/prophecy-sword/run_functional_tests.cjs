@@ -293,10 +293,13 @@ async function runTests(cdp) {
         tagline: document.querySelector(".title-copy .tagline")?.textContent || "",
         faviconHref: document.querySelector('link[rel="icon"]')?.getAttribute("href") || "",
         faviconType: document.querySelector('link[rel="icon"]')?.getAttribute("type") || "",
-        titleArtBackground: getComputedStyle(document.querySelector(".title-art")).backgroundImage
+        titleArtBackground: getComputedStyle(document.querySelector(".title-art")).backgroundImage,
+        homeHref: document.querySelector(".title-home-link")?.getAttribute("href") || "",
+        homeLabel: document.querySelector(".title-home-link")?.getAttribute("aria-label") || ""
       };
     })()`);
     assert(result.gameHidden, "Game screen should be hidden on title.");
+    assert(result.homeHref === "../" && /all Daranor games/i.test(result.homeLabel), `Title should link back to the shared game chooser, got ${JSON.stringify(result)}.`);
     assert(result.documentTitle === "ProphecyQuest RPG" && result.heading === "ProphecyQuest RPG", `Title screen should be branded as ProphecyQuest RPG, got ${JSON.stringify(result)}.`);
     assert(result.kicker.includes("SwordQuest") && result.tagline.includes("SwordQuest"), `Title screen should still note SwordQuest, got ${JSON.stringify(result)}.`);
     assert(result.titleArtBackground.includes("prophecyquest-title-v1"), `Title screen should use ProphecyQuest-specific art, got ${JSON.stringify(result)}.`);
@@ -373,6 +376,38 @@ async function runTests(cdp) {
     state = await evalPage(cdp, `window.DreamQuestDebug.getState()`);
     assert(state.steps === before.steps + 1, "Movement should increment steps.");
     await evalPage(cdp, `window.DreamQuestDebug.setCoachingEnabled(false)`);
+  });
+
+  test("Corizaz prologue transition advances to Krendon", async () => {
+    if (!await evalPage(cdp, `Boolean(window.DreamQuestDebug.getState())`)) {
+      await click(cdp, "#new-game");
+      await waitFor(cdp, `Boolean(window.DreamQuestDebug.getState())`);
+      await closeDialogue(cdp);
+    }
+    await evalPage(cdp, `(() => {
+      const debug = window.DreamQuestDebug;
+      debug.setSettings({ reducedEffects: true });
+      debug.setStoryFlag("psTivuSeen", true);
+      debug.setStoryFlag("psGerthoudKilled", false);
+      debug.setCompletedEvent("pq_walis_corizaz", false);
+      debug.travelTo("pqDeguzIntro", 17, 12);
+    })()`);
+    await closeDialogue(cdp);
+    const triggered = await evalPage(cdp, `window.DreamQuestDebug.triggerEventById("pq_walis_corizaz")`);
+    assert(triggered, "The Corizaz prologue event should be available after Tivu's warning.");
+    await closeDialogue(cdp);
+    await waitFor(cdp, `window.DreamQuestDebug.getState()?.areaId === "pqKrendonFlight" && window.DreamQuestDebug.getState()?.flags?.psGerthoudKilled`, 5000);
+    const result = await evalPage(cdp, `(() => {
+      const state = window.DreamQuestDebug.getState();
+      return {
+        areaId: state.areaId,
+        flag: Boolean(state.flags.psGerthoudKilled),
+        party: state.party.map((member) => member.id)
+      };
+    })()`);
+    assert(result.areaId === "pqKrendonFlight" && result.flag, `Corizaz should advance the prologue into the Krendon flight, got ${JSON.stringify(result)}.`);
+    assert(JSON.stringify(result.party) === JSON.stringify(["yvonne", "alahim"]), `Corizaz should hand control to Yvonne and Alahim, got ${JSON.stringify(result.party)}.`);
+    await evalPage(cdp, `window.DreamQuestDebug.setSettings({ reducedEffects: false })`);
   });
 
   test("random encounters wait at least four steps after a fight", async () => {
@@ -1608,12 +1643,26 @@ async function runTests(cdp) {
       active: document.querySelector("[data-guide-section].is-active")?.dataset.guideSection,
       sections: document.querySelectorAll(".guide-section").length,
       entries: document.querySelectorAll(".guide-entry").length,
-      canvases: document.querySelectorAll(".guide-image").length
+      canvases: document.querySelectorAll(".guide-image").length,
+      tabStrip: (() => {
+        const strip = document.querySelector(".guide-tabs");
+        const button = strip?.querySelector(".menu-tab");
+        if (!strip || !button) return null;
+        const rect = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return {
+          height: Math.round(strip.getBoundingClientRect().height),
+          buttonHeight: Math.round(rect.height),
+          minHeight: parseFloat(getComputedStyle(strip).minHeight),
+          hit: hit === button || button.contains(hit)
+        };
+      })()
     }))()`);
     assert(guide.active === snapshot.config.defaultGuideSection, "Guide should open to the configured default section.");
     assert(guide.sections === 1, "Guide should render one section at a time.");
     assert(guide.entries === snapshot.guideSectionCounts[snapshot.config.defaultGuideSection], "Default guide section should render the configured entries.");
     assert(guide.entries > 0 && guide.canvases === guide.entries, "Guide entries should each have one image canvas.");
+    assert(guide.tabStrip?.minHeight >= 52 && guide.tabStrip.height >= guide.tabStrip.buttonHeight && guide.tabStrip.hit, `Guide tabs should remain fully visible and clickable, got ${JSON.stringify(guide.tabStrip)}.`);
     const totalEntries = Object.values(snapshot.guideSectionCounts).reduce((sum, count) => sum + count, 0);
     if (totalEntries > guide.entries) {
       assert(guide.canvases < totalEntries, `Guide should not render every entry at once, saw ${guide.canvases}.`);
