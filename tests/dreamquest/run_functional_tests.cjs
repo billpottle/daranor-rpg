@@ -2976,13 +2976,16 @@ async function runTests(cdp) {
       const save = window.DreamQuestDebug.freshState();
       save.startedAt = Date.now() - 7 * 24 * 60 * 60 * 1000;
       save.playTimeMs = 2 * 60 * 1000;
+      save.coaching.enabled = false;
       localStorage.setItem(key, JSON.stringify(save));
     })()`);
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitFor(cdp, `document.readyState === "complete" && Boolean(window.DreamQuestDebug)`, 10000);
     await click(cdp, "#continue-game");
     await closeDialogue(cdp);
-    await evalPage(cdp, `window.DreamQuestDebug.openMenu("quest")`);
+    const menuOpened = await evalPage(cdp, `window.DreamQuestDebug.openMenu("quest")`);
+    assert(menuOpened, "The playtime fixture should be able to open the Quest panel without another modal competing for focus.");
+    await waitFor(cdp, `Boolean(document.querySelector("#menu-panel-quest"))`);
     const result = await evalPage(cdp, `(() => {
       const legacy = window.DreamQuestDebug.freshState();
       legacy.version = 7;
