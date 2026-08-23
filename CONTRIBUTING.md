@@ -11,7 +11,7 @@ Bug reports, accessibility improvements, tests, documentation, and focused game 
 
 ## Local setup
 
-Install Node.js 20 or newer and Chrome or Chromium. This repository has no third-party npm dependencies.
+Install Node.js 22 or newer and Chrome or Chromium. This repository has no third-party npm dependencies.
 
 ```sh
 npm run dev

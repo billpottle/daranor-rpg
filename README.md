@@ -12,7 +12,7 @@ The website build is the primary way to play. Each campaign is also emitted as a
 
 Requirements:
 
-- [Node.js](https://nodejs.org/) 20 or newer.
+- [Node.js](https://nodejs.org/) 22 or newer.
 - Google Chrome or Chromium for the functional test suite.
 
 No third-party npm packages are required.
