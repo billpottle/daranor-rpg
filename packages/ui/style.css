@@ -3360,7 +3360,7 @@ summary {
 
 @media (min-width: 561px) and (max-height: 760px) {
   .battle:not(.is-reward) .battle-visual {
-    height: clamp(112px, calc(100dvh - 405px), 250px);
+    height: clamp(96px, calc(100dvh - 420px), 250px);
     overflow: hidden;
   }
 
