@@ -525,6 +525,12 @@ async function runTests(cdp) {
   });
 
   test("music transitions keep one active source", async () => {
+    if (!await evalPage(cdp, `Boolean(window.DreamQuestDebug.getState())`)) {
+      await click(cdp, "#new-game");
+      await waitFor(cdp, `Boolean(window.DreamQuestDebug.getState())`);
+      await closeDialogue(cdp);
+      await evalPage(cdp, `window.DreamQuestDebug.setCoachingEnabled(false)`);
+    }
     const targets = await evalPage(cdp, `(() => {
       const data = window.DreamQuestData;
       const themeForArea = (areaId) => {
@@ -569,6 +575,50 @@ async function runTests(cdp) {
       assert(music.activeTrackKeys.length <= 1, `Expected at most one active music track after traveling to ${areaId}, got ${music.activeTrackKeys.join(", ")}.`);
       assert(!(music.timerActive && music.activeTrackKeys.length > 0), `Synth timer and audio track were both active after traveling to ${areaId}.`);
     }
+    const beforeAdvance = await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug()`);
+    assert(beforeAdvance.playlist.length >= 2, `Area music should use a multi-track playlist, got ${JSON.stringify(beforeAdvance)}.`);
+    await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug().advancePlaylist()`);
+    await sleep(120);
+    const afterAdvance = await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug()`);
+    assert(afterAdvance.trackKey !== beforeAdvance.trackKey, `Advancing a music playlist should avoid an immediate repeat, got ${JSON.stringify({ beforeAdvance, afterAdvance })}.`);
+    assert(afterAdvance.activeTrackKeys.length <= 1, `Playlist advance must keep one active source, got ${afterAdvance.activeTrackKeys.join(", ")}.`);
+
+    await evalPage(cdp, `window.DreamQuestDebug.travelTo("krendonRoad")`);
+    await sleep(120);
+    await evalPage(cdp, `(() => {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const debug = window.DreamQuestDebug.getMusicDebug();
+        if (debug.trackKey === "wilds") return;
+        debug.advancePlaylist();
+      }
+    })()`);
+    const roadMusic = await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug()`);
+    const sharedThemeTarget = await evalPage(cdp, `(() => {
+      const used = window.DreamQuestDebug.getMusicDebug().themeTrackKeys;
+      const terrainThemes = { mountain: "mountain", tree: "forest", sand: "sand" };
+      for (const [areaId, area] of Object.entries(window.DreamQuestData.areas)) {
+        const theme = terrainThemes[area?.theme];
+        if (theme && !used[theme]) return { areaId, theme };
+      }
+      return null;
+    })()`);
+    assert(sharedThemeTarget && roadMusic.trackKey === "wilds", `Music fixture should find an unused wilds theme before changing areas, got ${JSON.stringify({ sharedThemeTarget, roadMusic })}.`);
+    await evalPage(cdp, `window.DreamQuestDebug.travelTo(${JSON.stringify(sharedThemeTarget.areaId)})`);
+    await sleep(100);
+    const sharedThemeMusic = await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug()`);
+    assert(sharedThemeMusic.theme === sharedThemeTarget.theme && sharedThemeMusic.trackKey === "wilds" && sharedThemeMusic.themeTrackKeys[sharedThemeTarget.theme] === "wilds", `A shared playing track should still receive the new theme metadata, got ${JSON.stringify({ sharedThemeTarget, sharedThemeMusic })}.`);
+    assert(sharedThemeMusic.trackVolume < roadMusic.trackVolume, `A shared playing track should receive the quieter terrain mix, got road ${roadMusic.trackVolume} and ${sharedThemeTarget.theme} ${sharedThemeMusic.trackVolume}.`);
+
+    const failedPreload = sharedThemeMusic.playlist[(sharedThemeMusic.playlistIndex + 1) % sharedThemeMusic.playlist.length];
+    assert(sharedThemeMusic.loadedTrackKeys.includes(failedPreload), `The next short cue should be preloaded for gapless sequencing, got ${JSON.stringify(sharedThemeMusic)}.`);
+    await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug().failTrack(${JSON.stringify(failedPreload)})`);
+    const afterPreloadFailure = await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug()`);
+    assert(afterPreloadFailure.trackKey === sharedThemeMusic.trackKey && !afterPreloadFailure.playlist.includes(failedPreload), `A failed preloaded cue should be pruned without stopping the current cue, got ${JSON.stringify(afterPreloadFailure)}.`);
+    await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug().failCurrentTrack()`);
+    await sleep(100);
+    const afterCurrentFailure = await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug()`);
+    assert(afterCurrentFailure.trackKey && afterCurrentFailure.trackKey !== sharedThemeMusic.trackKey, `A failed current cue should continue with another playlist item, got ${JSON.stringify(afterCurrentFailure)}.`);
+    assert(afterCurrentFailure.activeTrackKeys.length <= 1, `Failure recovery must keep one active music source, got ${afterCurrentFailure.activeTrackKeys.join(", ")}.`);
     await closeDialogue(cdp);
   });
 
@@ -3054,25 +3104,79 @@ async function runTests(cdp) {
       await sleep(180);
       const result = await evalPage(cdp, `(() => {
         const controls = document.querySelector("#mobile-controls");
+        const down = controls.querySelector('[data-dir="down"]');
         const menu = document.querySelector("#field-menu-btn");
         const dock = document.querySelector(".field-dock");
+        const map = document.querySelector("#map-canvas");
+        const banner = document.querySelector("#scene-banner");
+        const hud = document.querySelector(".hud");
         const controlRect = controls.getBoundingClientRect();
         const menuRect = menu.getBoundingClientRect();
         const dockRect = dock.getBoundingClientRect();
+        const mapRect = map.getBoundingClientRect();
+        const downRect = down.getBoundingClientRect();
         const overlap = !(controlRect.right <= menuRect.left || menuRect.right <= controlRect.left || controlRect.bottom <= menuRect.top || menuRect.bottom <= controlRect.top);
+        const controlsOverlayMap = !(controlRect.right <= mapRect.left || mapRect.right <= controlRect.left || controlRect.bottom <= mapRect.top || mapRect.bottom <= controlRect.top);
+        const downInsideMap = downRect.left >= mapRect.left && downRect.right <= mapRect.right && downRect.top >= mapRect.top && downRect.bottom <= mapRect.bottom;
         const hit = document.elementFromPoint(menuRect.left + menuRect.width / 2, menuRect.top + menuRect.height / 2);
         return {
           overlap,
+          controlsOverlayMap,
+          downInsideMap,
           menuHit: hit === menu || menu.contains(hit),
           hit: hit ? { tag: hit.tagName, id: hit.id, className: String(hit.className || "") } : null,
           menuSize: [menuRect.width, menuRect.height],
           dock: { left: dockRect.left, right: dockRect.right, bottom: dockRect.bottom },
+          map: { top: mapRect.top, bottom: mapRect.bottom, width: mapRect.width, height: mapRect.height },
+          logicalMap: [Number(map.dataset.logicalWidth), Number(map.dataset.logicalHeight)],
+          bannerDisplay: getComputedStyle(banner).display,
+          hudPosition: getComputedStyle(hud).position,
           viewport: [innerWidth, innerHeight]
         };
       })()`);
       assert(!result.overlap && result.menuHit, `Movement controls must not intercept the phone Menu button, got ${JSON.stringify(result)}.`);
       assert(result.menuSize[0] >= 44 && result.menuSize[1] >= 44, `Phone Menu target should be at least 44px, got ${JSON.stringify(result.menuSize)}.`);
       assert(result.dock.left >= 0 && result.dock.right <= result.viewport[0] && result.dock.bottom <= result.viewport[1], `Phone dock should remain inside the viewport, got ${JSON.stringify(result)}.`);
+      assert(result.bannerDisplay === "none" && result.hudPosition === "fixed", `Phone chrome should overlay the map without a scenic banner, got ${JSON.stringify(result)}.`);
+      assert(Math.abs(result.map.height - result.viewport[1]) <= 2 && result.logicalMap[1] > result.logicalMap[0], `Phone map should fill the playable viewport, got ${JSON.stringify(result)}.`);
+      assert(result.controlsOverlayMap && result.downInsideMap, `Every movement control should overlay the playable map, got ${JSON.stringify(result)}.`);
+      await evalPage(cdp, `(() => {
+        const controls = document.querySelector("#mobile-controls");
+        const down = controls.querySelector('[data-dir="down"]');
+        down.focus();
+        controls.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerType: "touch" }));
+      })()`);
+      await sleep(60);
+      const touchFocus = await evalPage(cdp, `document.activeElement?.classList?.contains("compass-button") || false`);
+      assert(!touchFocus, "Touching a direction should not leave a persistent circular focus ring on the D-pad.");
+      const downPoint = await evalPage(cdp, `(() => { const rect = document.querySelector('[data-dir="down"]').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`);
+      await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: downPoint.x, y: downPoint.y });
+      await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: downPoint.x, y: downPoint.y, button: "left", clickCount: 1 });
+      await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: downPoint.x, y: downPoint.y, button: "left", clickCount: 1 });
+      const hoverOutline = await evalPage(cdp, `getComputedStyle(document.querySelector('[data-dir="down"]')).outlineStyle`);
+      assert(hoverOutline === "none", `A completed direction tap should not leave the Down button circled, got outline style ${hoverOutline}.`);
+    } finally {
+      await cdp.send("Emulation.clearDeviceMetricsOverride");
+      await evalPage(cdp, `window.dispatchEvent(new Event("resize"))`);
+    }
+  });
+
+  test("retina map backing size remains stable across renders", async () => {
+    if (!await evalPage(cdp, `Boolean(window.DreamQuestDebug.getState())`)) {
+      await click(cdp, "#new-game");
+      await waitFor(cdp, `Boolean(window.DreamQuestDebug.getState())`);
+      await closeDialogue(cdp);
+    }
+    await cdp.send("Emulation.setDeviceMetricsOverride", { width: 900, height: 700, deviceScaleFactor: 2, mobile: false });
+    try {
+      await evalPage(cdp, `window.dispatchEvent(new Event("resize"))`);
+      await sleep(100);
+      const before = await evalPage(cdp, `(() => { const map = document.querySelector("#map-canvas"); return { logical: [Number(map.dataset.logicalWidth), Number(map.dataset.logicalHeight)], backing: [map.width, map.height], dpr: devicePixelRatio }; })()`);
+      await evalPage(cdp, `window.dispatchEvent(new Event("resize")); window.DreamQuestDebug.travelTo(window.DreamQuestDebug.getState().areaId)`);
+      await sleep(120);
+      const after = await evalPage(cdp, `(() => { const map = document.querySelector("#map-canvas"); return { logical: [Number(map.dataset.logicalWidth), Number(map.dataset.logicalHeight)], backing: [map.width, map.height], dpr: devicePixelRatio }; })()`);
+      assert(JSON.stringify(before.logical) === JSON.stringify([960, 704]), `Desktop logical map should remain fixed, got ${JSON.stringify(before)}.`);
+      assert(JSON.stringify(after) === JSON.stringify(before), `Repeated Retina renders should not multiply the canvas backing size, got ${JSON.stringify({ before, after })}.`);
     } finally {
       await cdp.send("Emulation.clearDeviceMetricsOverride");
       await evalPage(cdp, `window.dispatchEvent(new Event("resize"))`);

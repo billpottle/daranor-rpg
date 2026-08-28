@@ -12,6 +12,9 @@ for (const gameId of ["dreamquest", "prophecy-sword"]) {
   run(process.execPath, ["tools/validate_game_data.cjs", "--root", `dist/${gameId}`], { cwd: repoRoot });
 }
 
+console.log("\nValidating install and offline build...");
+run(process.execPath, ["tests/pwa/run_tests.mjs"], { cwd: repoRoot });
+
 console.log("\nRunning dreamquest functional tests...");
 run(process.execPath, ["tests/dreamquest/run_functional_tests.cjs", "--root", "dist/dreamquest"], { cwd: repoRoot });
 

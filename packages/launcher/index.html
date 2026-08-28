@@ -3,8 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0c0d12">
     <title>Daranor RPG</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="launcher.css">
+    <script src="pwa.js" defer></script>
   </head>
   <body>
     <main>
@@ -12,7 +17,7 @@
         <p class="eyebrow">The Daranor Trilogy</p>
         <h1>Choose your quest</h1>
         <p class="intro">Play the original DreamQuest adventure or continue into the combined ProphecyQuest and SwordQuest campaign.</p>
-        <p class="play-note">No download needed. Your adventure saves in this browser.</p>
+        <p class="play-note">Play now in your browser, or install below for offline play.</p>
       </header>
       <section class="games" aria-label="Choose a Daranor adventure">
         <a class="game-card" href="dreamquest/">
@@ -38,6 +43,36 @@
             <span class="play-cta">Play the sequel campaign <span aria-hidden="true">→</span></span>
           </span>
         </a>
+      </section>
+      <section class="offline-panel" aria-labelledby="offline-title">
+        <div class="offline-heading">
+          <div>
+            <p class="eyebrow">Phone, tablet, or laptop</p>
+            <h2 id="offline-title">Install and play offline</h2>
+          </div>
+          <button id="install-app" class="install-button" type="button" hidden>Install Daranor</button>
+        </div>
+        <p>Installing adds Daranor to your home screen. Campaigns are downloaded separately so you choose how much space to use.</p>
+        <div class="offline-downloads">
+          <div class="offline-download" data-campaign-status="dreamquest">
+            <strong>DreamQuest</strong>
+            <button type="button" data-download-campaign="dreamquest">Make available offline <span>~96 MB</span></button>
+            <progress value="0" max="1" aria-label="DreamQuest offline download progress"></progress>
+            <output aria-live="polite">Not downloaded</output>
+          </div>
+          <div class="offline-download" data-campaign-status="prophecy-sword">
+            <strong>ProphecyQuest / SwordQuest</strong>
+            <button type="button" data-download-campaign="prophecy-sword">Make available offline <span>~302 MB</span></button>
+            <progress value="0" max="1" aria-label="Sequel campaign offline download progress"></progress>
+            <output aria-live="polite">Not downloaded</output>
+          </div>
+        </div>
+        <details class="install-help">
+          <summary>How do I install it?</summary>
+          <p><strong>Android:</strong> tap <em>Install Daranor</em> when shown, or open Chrome’s menu and choose <em>Install app</em> / <em>Add to Home screen</em>.</p>
+          <p><strong>iPhone or iPad:</strong> open this page in Safari, tap Share, choose <em>Add to Home Screen</em>, turn on <em>Open as Web App</em>, then tap Add.</p>
+          <p>Open the installed game while online once, then finish the campaign download above before going offline.</p>
+        </details>
       </section>
     </main>
   </body>

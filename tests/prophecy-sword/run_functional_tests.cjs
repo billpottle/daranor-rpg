@@ -545,6 +545,12 @@ async function runTests(cdp) {
   });
 
   test("music transitions keep one active source", async () => {
+    if (!await evalPage(cdp, `Boolean(window.DreamQuestDebug.getState())`)) {
+      await click(cdp, "#new-game");
+      await waitFor(cdp, `Boolean(window.DreamQuestDebug.getState())`);
+      await closeDialogue(cdp);
+      await evalPage(cdp, `window.DreamQuestDebug.setCoachingEnabled(false)`);
+    }
     const targets = await evalPage(cdp, `(() => {
       const data = window.DreamQuestData;
       const themeForArea = (areaId) => {
@@ -589,6 +595,13 @@ async function runTests(cdp) {
       assert(music.activeTrackKeys.length <= 1, `Expected at most one active music track after traveling to ${areaId}, got ${music.activeTrackKeys.join(", ")}.`);
       assert(!(music.timerActive && music.activeTrackKeys.length > 0), `Synth timer and audio track were both active after traveling to ${areaId}.`);
     }
+    const beforeAdvance = await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug()`);
+    assert(beforeAdvance.playlist.length >= 2, `Area music should use a multi-track playlist, got ${JSON.stringify(beforeAdvance)}.`);
+    await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug().advancePlaylist()`);
+    await sleep(120);
+    const afterAdvance = await evalPage(cdp, `window.DreamQuestDebug.getMusicDebug()`);
+    assert(afterAdvance.trackKey !== beforeAdvance.trackKey, `Advancing a music playlist should avoid an immediate repeat, got ${JSON.stringify({ beforeAdvance, afterAdvance })}.`);
+    assert(afterAdvance.activeTrackKeys.length <= 1, `Playlist advance must keep one active source, got ${afterAdvance.activeTrackKeys.join(", ")}.`);
     await closeDialogue(cdp);
   });
 

@@ -1795,6 +1795,31 @@
       victory: "victory"
     };
 
+    const musicTrackThemePlaylists = {
+      title: ["mainAdventure", "wilds", "waterMerfolk", "shrineMystic"],
+      field: ["mainAdventure", "wilds", "waterMerfolk", "shrineMystic"],
+      road: ["mainAdventure", "wilds", "waterMerfolk", "shrineMystic"],
+      mountain: ["wilds", "mainAdventure", "waterMerfolk", "shrineMystic"],
+      forest: ["wilds", "waterMerfolk", "mainAdventure", "shrineMystic"],
+      water: ["waterMerfolk", "shrineMystic", "mainAdventure", "wilds"],
+      sand: ["wilds", "mainAdventure", "waterMerfolk", "shrineMystic"],
+      town: ["town", "shopMarket", "mainAdventure", "wilds"],
+      shop: ["shopMarket", "town", "mainAdventure", "wilds"],
+      market: ["shopMarket", "town", "mainAdventure", "wilds"],
+      shrine: ["shrineMystic", "waterMerfolk", "dungeon", "wilds"],
+      marsh: ["dungeon", "shrineMystic", "wilds", "waterMerfolk"],
+      deepForest: ["dungeon", "wilds", "shrineMystic", "waterMerfolk"],
+      castle: ["dungeon", "shrineMystic", "wilds", "waterMerfolk"],
+      dungeon: ["dungeon", "shrineMystic", "wilds", "waterMerfolk"],
+      glass: ["shrineMystic", "waterMerfolk", "dungeon", "wilds"],
+      approach: ["dungeon", "wilds", "shrineMystic", "waterMerfolk"],
+      battle: ["battle", "escape"],
+      boss: ["bossBattle", "battle", "finalBattle"],
+      finalBattle: ["finalBattle", "bossBattle", "battle"],
+      escape: ["escape", "battle", "wilds"],
+      victory: ["victory", "mainAdventure", "town", "shopMarket"]
+    };
+
     const musicTrackVolumes = {
       title: 0.82, field: 0.82, road: 0.82, mountain: 0.78, forest: 0.78, water: 0.8, sand: 0.78,
       town: 0.76, shop: 0.72, market: 0.72, shrine: 0.74, marsh: 0.74, deepForest: 0.74,
@@ -8508,6 +8533,7 @@
       guideData,
       musicTrackSources,
       musicTrackThemeMap,
+      musicTrackThemePlaylists,
       musicTrackVolumes,
       areaOrder,
       optionalAreaIds,

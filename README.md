@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://pottlebooks.com/dqrpg/"><strong>▶ Choose a game and play online</strong></a>
   <br>
-  <sub>No installation needed — play in a modern desktop or mobile browser.</sub>
+  <sub>Play instantly in a browser, or install it for offline play.</sub>
 </p>
 
 ## Play online
@@ -83,6 +83,16 @@ Your progress is stored in your browser. The games also support JSON save export
 
 Found a problem? Please use the [bug report form](https://github.com/billpottle/daranor-rpg/issues/new?template=bug.yml). Include the game, browser, device, and steps that reproduce the issue. Save files and screenshots are helpful but optional.
 
+## Install for offline play
+
+Open the [Daranor game chooser](https://pottlebooks.com/dqrpg/) on the device you want to use. Installing the app is small; each campaign is then downloaded separately from the chooser so you control the storage used.
+
+- **Android:** tap **Install Daranor** when it appears, or use Chrome’s menu and choose **Install app** / **Add to Home screen**.
+- **iPhone or iPad:** open the chooser in Safari, tap **Share**, choose **Add to Home Screen**, enable **Open as Web App**, and tap **Add**.
+- Back on the chooser, tap **Make available offline** for DreamQuest (about 96 MB) or ProphecyQuest / SwordQuest (about 302 MB). Wait until it says **Ready for offline play** before disconnecting.
+
+The downloader resumes partial downloads and avoids storing duplicate shared files twice. Browser or operating-system storage cleanup can still remove offline data, so exporting an important save remains a good backup.
+
 ## For developers
 
 This monorepo contains DreamQuest, the combined ProphecyQuest/SwordQuest sequel campaign, and their shared game engine, interface, asset library, build system, and test harness. The website is the primary way to play, and each campaign can also be built as a self-contained folder for offline use.
@@ -123,7 +133,7 @@ npm run dev -- --port 8080
 
 `dist/` is generated and is not committed.
 
-### Offline distributions
+### Developer offline distributions
 
 Run `npm run build`, then package either `dist/dreamquest/` or `dist/prophecy-sword/`. Each folder contains its own HTML, JavaScript, CSS, media, and an `asset-manifest.json` with file hashes. Serving the folder over local HTTP gives the most consistent browser behavior:
 

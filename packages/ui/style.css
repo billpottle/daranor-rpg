@@ -3388,6 +3388,17 @@ summary {
 }
 
 @media (max-width: 560px) {
+  .game-screen {
+    position: relative;
+    display: block;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    background: #050507;
+  }
+
   .guide-tabs {
     min-height: 56px;
   }
@@ -3449,20 +3460,41 @@ summary {
     object-fit: contain;
   }
   .hud {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px;
-    padding: max(7px, env(safe-area-inset-top)) 9px 7px;
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 86;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 5px;
+    min-height: 54px;
+    padding: max(5px, env(safe-area-inset-top)) 8px 5px;
+    border-bottom-color: rgba(255, 221, 154, 0.2);
+    background:
+      linear-gradient(180deg, rgba(12, 13, 18, 0.9), rgba(12, 13, 18, 0.68)),
+      rgba(8, 9, 13, 0.72);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(8px);
   }
 
-  .hud h2 { font-size: 1.08rem; }
-  .hud-label { font-size: 0.66rem; }
-  .hud-stat { min-width: 62px; padding: 5px 7px; }
+  .hud > div:first-child { min-width: 0; }
+  .hud h2 {
+    overflow: hidden;
+    font-size: 0.98rem;
+    line-height: 1.08;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hud-label { display: none; }
+  .hud-stat { min-width: 52px; padding: 3px 6px; }
+  .hud-stat span { font-size: 0.92rem; }
+  .hud-stat small { font-size: 0.7rem; }
 
   .hud-actions {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(44px, auto));
+    grid-column: auto;
+    display: flex;
     justify-content: end;
-    gap: 5px;
+    gap: 4px;
   }
 
   .hud-actions > button,
@@ -3476,7 +3508,17 @@ summary {
   .hud-actions .save-status,
   .hud .music-switch-label { display: none; }
 
-  .hud-more { position: relative; display: block; }
+  .hud-actions #save-btn,
+  .hud-actions #menu-btn,
+  .hud-more { display: none; }
+
+  .hud-actions #music-btn {
+    min-width: 74px;
+    width: 74px;
+    padding: 4px;
+  }
+
+  .hud-more { position: relative; display: none; }
   .hud-more > summary {
     display: grid;
     place-items: center;
@@ -3502,10 +3544,15 @@ summary {
   }
 
   .mobile-controls {
-    width: 132px;
-    height: 132px;
-    left: auto;
-    bottom: auto;
+    position: fixed;
+    left: max(10px, env(safe-area-inset-left));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    z-index: 90;
+    width: 124px;
+    height: 124px;
+    pointer-events: auto;
+    opacity: 0.88;
+    backdrop-filter: blur(4px);
   }
 
   .compass-button {
@@ -3519,13 +3566,38 @@ summary {
     height: 38px;
   }
 
-  .field-dock {
-    display: grid;
-    grid-template-columns: 132px 52px minmax(0, 1fr);
-    width: calc(100vw - 18px);
-    padding: 7px;
-    bottom: max(8px, env(safe-area-inset-bottom));
+  .compass-button:hover:not(:focus-visible) {
+    border-color: rgba(255, 221, 154, 0.28);
+    background: rgba(16, 18, 24, 0.68);
+    color: #ffe08a;
+    outline: 0;
   }
+
+  .field-dock {
+    position: static;
+    display: block;
+    width: 0;
+    height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    transform: none;
+    pointer-events: none;
+  }
+
+  .field-menu-btn {
+    position: fixed;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    z-index: 90;
+    pointer-events: auto;
+    opacity: 0.9;
+    backdrop-filter: blur(4px);
+  }
+
+  .field-dock-copy { display: none; }
 
   .field-dock-copy span {
     max-width: 100%;
@@ -3660,9 +3732,24 @@ summary {
     text-align: left;
   }
 
-  .scene-banner {
-    min-height: 120px;
+  .main-play {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
   }
+
+  .map-panel {
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+    background: #050507;
+    box-shadow: none;
+  }
+
+  .scene-banner { display: none; }
 
   .ending-panel {
     grid-template-columns: minmax(0, 1fr);
@@ -3720,58 +3807,75 @@ summary {
   }
 
   .map-stage {
-    padding: 8px;
+    display: grid;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    place-items: center;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at center, rgba(51, 76, 92, 0.16), transparent 62%),
+      #050507;
+  }
+
+  .map-stage #map-canvas,
+  .game-screen.is-focus-mode .map-stage #map-canvas {
+    width: 100%;
+    height: auto;
+    max-width: none;
+    max-height: 100dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .map-stage canvas.mini-map,
   .game-screen.is-focus-mode .map-stage canvas.mini-map {
-    width: 152px;
-    height: 105px;
-    bottom: max(158px, calc(env(safe-area-inset-bottom) + 158px));
+    display: none;
   }
 
   .mini-map-toggle {
     display: block;
-    right: 8px;
-    bottom: max(352px, calc(env(safe-area-inset-bottom) + 352px));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(72px, calc(env(safe-area-inset-bottom) + 72px));
+    z-index: 103;
     min-height: 44px;
+    padding: 5px 9px;
+    font-size: 0.78rem;
+    opacity: 0.9;
   }
 
   .game-screen.is-mini-map-expanded .map-stage canvas.mini-map,
   .game-screen.is-mini-map-expanded.is-focus-mode .map-stage canvas.mini-map {
-    right: 8px;
-    bottom: max(158px, calc(env(safe-area-inset-bottom) + 158px));
+    display: block;
+    right: 10px;
+    bottom: max(78px, calc(env(safe-area-inset-bottom) + 78px));
     z-index: 101;
-    width: calc(100vw - 16px);
+    width: calc(100vw - 20px);
     height: auto;
-    max-height: 46dvh;
+    max-height: 44dvh;
   }
 
   .game-screen.is-mini-map-expanded .mini-map-legend {
-    right: 8px;
-    bottom: min(62dvh, calc(env(safe-area-inset-bottom) + 472px));
+    display: flex;
+    right: 10px;
+    bottom: min(58dvh, calc(env(safe-area-inset-bottom) + 348px));
     z-index: 102;
-    width: calc(100vw - 16px);
+    width: calc(100vw - 20px);
     font-size: 0.72rem;
   }
 
   .game-screen.is-mini-map-expanded .mini-map-toggle {
     z-index: 103;
-    bottom: max(158px, calc(env(safe-area-inset-bottom) + 158px));
+    bottom: max(84px, calc(env(safe-area-inset-bottom) + 84px));
   }
 
   .mini-map-legend {
-    right: 8px;
-    bottom: max(242px, calc(env(safe-area-inset-bottom) + 242px));
-    width: 152px;
-    gap: 3px 6px;
-    padding: 5px 7px;
-    font-size: 0.58rem;
+    display: none;
   }
 
-  .focus-toggle {
-    bottom: max(248px, calc(env(safe-area-inset-bottom) + 248px));
-  }
+  .focus-toggle { display: none; }
 
   .enemy-hud {
     width: min(240px, 48%);

@@ -92,6 +92,7 @@
     guideData,
     musicTrackSources,
     musicTrackThemeMap,
+    musicTrackThemePlaylists = {},
     musicTrackVolumes,
     areaOrder,
     optionalAreaIds,
@@ -310,6 +311,9 @@
     trackKey: "",
     trackElements: {},
     trackFailures: new Set(),
+    playlist: [],
+    playlistIndex: -1,
+    themeTrackKeys: {},
     enabled: true,
     playing: false,
     theme: "title"
@@ -2335,6 +2339,7 @@
   }
 
   function prepareHiDPICanvas(canvas) {
+    if (canvas.id === "map-canvas") syncMapCanvasLogicalSize(canvas);
     if (!canvas.dataset.logicalWidth) {
       canvas.dataset.logicalWidth = String(Number(canvas.getAttribute("width")) || canvas.width || 1);
       canvas.dataset.logicalHeight = String(Number(canvas.getAttribute("height")) || canvas.height || 1);
@@ -2351,6 +2356,16 @@
     const ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return { ctx, width, height, dpr };
+  }
+
+  function syncMapCanvasLogicalSize(canvas) {
+    const phoneLayout = window.matchMedia?.("(max-width: 560px)")?.matches;
+    const width = phoneLayout ? 480 : 960;
+    const viewportWidth = Math.max(1, Number(window.visualViewport?.width) || window.innerWidth || width);
+    const viewportHeight = Math.max(1, Number(window.visualViewport?.height) || window.innerHeight || 816);
+    const height = phoneLayout ? Math.max(816, Math.round(width * viewportHeight / viewportWidth)) : 704;
+    canvas.dataset.logicalWidth = String(width);
+    canvas.dataset.logicalHeight = String(height);
   }
 
   function logicalCanvasSize(canvas) {
@@ -14120,29 +14135,60 @@
 
   function setMusicTheme(themeName) {
     const nextTheme = musicTrackThemeMap?.[themeName] ? themeName : "field";
-    if (audioState.theme === nextTheme && audioState.trackAudio && !audioState.trackAudio.paused) return;
+    const preserveCurrent = audioState.theme === nextTheme;
+    if (preserveCurrent && audioState.trackAudio && !audioState.trackAudio.paused) return;
     audioState.theme = nextTheme;
     if (!audioState.playing) return;
-    startThemeTrack(nextTheme);
+    startThemeTrack(nextTheme, preserveCurrent);
   }
 
-  function startThemeTrack(themeName) {
-    const trackKey = musicTrackThemeMap?.[themeName];
+  function startThemeTrack(themeName, preserveCurrent = false) {
+    audioState.playlist = musicPlaylistForTheme(themeName);
+    const preferredKey = preserveCurrent ? audioState.trackKey : audioState.themeTrackKeys[themeName];
+    const preferredIndex = audioState.playlist.indexOf(preferredKey);
+    audioState.playlistIndex = preferredIndex >= 0 ? preferredIndex : 0;
+    const trackKey = audioState.playlist[audioState.playlistIndex];
+    return playMusicTrack(trackKey, themeName);
+  }
+
+  function musicPlaylistForTheme(themeName) {
+    const fallback = musicTrackThemeMap?.[themeName] || musicTrackThemeMap?.field;
+    const configured = musicTrackThemePlaylists?.[themeName];
+    const keys = Array.isArray(configured) ? configured : [fallback];
+    return [...new Set([fallback, ...keys].filter((key) => key && musicTrackSources?.[key] && !audioState.trackFailures.has(key)))];
+  }
+
+  function advanceMusicPlaylist() {
+    if (!audioState.playing) return false;
+    const playlist = musicPlaylistForTheme(audioState.theme);
+    if (!playlist.length) return false;
+    const previousKey = audioState.trackKey;
+    const previousIndex = playlist.indexOf(previousKey);
+    const nextIndex = previousIndex >= 0 ? (previousIndex + 1) % playlist.length : 0;
+    audioState.playlist = playlist;
+    audioState.playlistIndex = nextIndex;
+    return playMusicTrack(playlist[nextIndex], audioState.theme, true);
+  }
+
+  function playMusicTrack(trackKey, themeName, restartEnded = false) {
     const src = trackKey ? musicTrackSources?.[trackKey] : "";
     if (!src || audioState.trackFailures.has(trackKey)) return false;
     const audio = getMusicTrack(trackKey, src);
     if (!audio) return false;
     pauseMusicTracksExcept(audio);
-    if (audioState.trackAudio === audio && !audio.paused) return true;
+    const alreadyPlaying = audioState.trackAudio === audio && !audio.paused;
     audioState.trackAudio = audio;
     audioState.trackKey = trackKey;
-    audio.loop = true;
+    audioState.themeTrackKeys[themeName] = trackKey;
+    audio.loop = false;
     audio.volume = musicTrackVolume(themeName);
-    if (audio.paused) audio.currentTime = 0;
+    preloadNextMusicTrack(trackKey);
+    if (alreadyPlaying) return true;
+    if (restartEnded || audio.ended || !Number.isFinite(audio.currentTime)) audio.currentTime = 0;
     const playResult = audio.play();
     if (playResult?.catch) {
       playResult.catch((error) => {
-        if (error?.name !== "NotAllowedError") audioState.trackFailures.add(trackKey);
+        if (error?.name !== "NotAllowedError") failMusicTrack(trackKey, audio);
       });
     }
     return true;
@@ -14152,13 +14198,42 @@
     if (audioState.trackElements[trackKey]) return audioState.trackElements[trackKey];
     const audio = new Audio(src);
     audio.preload = "metadata";
-    audio.loop = true;
+    audio.loop = false;
+    audio.addEventListener("ended", () => {
+      if (audioState.trackAudio === audio) advanceMusicPlaylist();
+    });
     audio.addEventListener("error", () => {
-      audioState.trackFailures.add(trackKey);
-      if (audioState.trackAudio === audio) audioState.trackAudio = null;
+      failMusicTrack(trackKey, audio);
     });
     audioState.trackElements[trackKey] = audio;
     return audio;
+  }
+
+  function preloadNextMusicTrack(currentTrackKey) {
+    if (audioState.playlist.length < 2) return;
+    const currentIndex = Math.max(0, audioState.playlist.indexOf(currentTrackKey));
+    for (let offset = 1; offset < audioState.playlist.length; offset += 1) {
+      const nextKey = audioState.playlist[(currentIndex + offset) % audioState.playlist.length];
+      const src = musicTrackSources?.[nextKey];
+      if (!src || audioState.trackFailures.has(nextKey)) continue;
+      const nextAudio = getMusicTrack(nextKey, src);
+      if (nextAudio) nextAudio.preload = "auto";
+      return;
+    }
+  }
+
+  function failMusicTrack(trackKey, audio) {
+    if (!trackKey || !audio) return false;
+    audioState.trackFailures.add(trackKey);
+    const refreshedPlaylist = musicPlaylistForTheme(audioState.theme);
+    audioState.playlist = refreshedPlaylist;
+    audioState.playlistIndex = refreshedPlaylist.indexOf(audioState.trackKey);
+    if (audioState.trackAudio !== audio) return false;
+    audio.pause?.();
+    audioState.trackAudio = null;
+    audioState.trackKey = "";
+    audioState.playlistIndex = -1;
+    return audioState.playing ? advanceMusicPlaylist() : false;
   }
 
   function musicTrackVolume(themeName) {
@@ -14715,7 +14790,15 @@
       updateCompassFromPointer(mobileControls, event);
     });
     ["pointerup", "pointercancel", "lostpointercapture"].forEach((eventName) => {
-      mobileControls?.addEventListener(eventName, () => resetCompass(mobileControls));
+      mobileControls?.addEventListener(eventName, (event) => {
+        resetCompass(mobileControls);
+        if (event.pointerType && event.pointerType !== "mouse") {
+          requestAnimationFrame(() => {
+            const focused = document.activeElement;
+            if (focused?.classList?.contains("compass-button") && mobileControls.contains(focused)) focused.blur();
+          });
+        }
+      });
     });
     document.querySelectorAll(".mobile-controls button").forEach((button) => {
       button.addEventListener("click", () => {
@@ -15017,9 +15100,18 @@
         theme: audioState.theme,
         timerActive: false,
         trackKey: audioState.trackKey,
+        playlist: [...audioState.playlist],
+        playlistIndex: audioState.playlistIndex,
+        currentTime: Number(audioState.trackAudio?.currentTime || 0),
+        trackVolume: Number(audioState.trackAudio?.volume || 0),
+        themeTrackKeys: { ...audioState.themeTrackKeys },
+        loadedTrackKeys: Object.keys(audioState.trackElements),
         activeTrackKeys: Object.entries(audioState.trackElements)
           .filter(([, audio]) => audio && !audio.paused)
-          .map(([key]) => key)
+          .map(([key]) => key),
+        advancePlaylist: () => advanceMusicPlaylist(),
+        failCurrentTrack: () => failMusicTrack(audioState.trackKey, audioState.trackAudio),
+        failTrack: (trackKey) => failMusicTrack(trackKey, audioState.trackElements[trackKey])
       }),
       openMenu,
       closeMenu,
